@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-import sys
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.svm import LinearSVC
@@ -13,7 +12,13 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from features.nltk_features import extract_useful_features
 from features.embedding_features import load_glove_embeddings, apply_average_embedding
+import warnings
+from sklearn.exceptions import ConvergenceWarning
 from joblib import Parallel, delayed
+import sys # For sys.exit() function
+
+# Suppress convergence warnings
+warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
 def extract_features_parallel(texts, n_jobs=-1):
     """Extract features for each text in parallel using joblib."""
@@ -127,7 +132,7 @@ def main():
             'param_grid': {'C': [0.01, 0.1, 1, 10, 100]}
         },
         'SVM': {
-            'model': LinearSVC(max_iter=5000, class_weight='balanced'),
+            'model': LinearSVC(max_iter=10000, class_weight='balanced'),
             'param_grid': {'C': [0.01, 0.1, 1, 10, 100]}
         },
         'Decision Tree': {
@@ -136,21 +141,27 @@ def main():
         }
     }
 
-    # Load GloVe embeddings
-    glove_embeddings = load_glove_embeddings(embedding_dim=100)
+    # GloVe Embedding Loading and Feature Extraction
+    print("Starting GloVe embedding loading...")
+    start_time = time.time()
 
-    # Average GloVe Embeddings
-    X_train_glove = apply_average_embedding(X_train, 'Description', glove_embeddings)
-    X_val_glove = apply_average_embedding(X_val, 'Description', glove_embeddings)
-    X_test_glove = apply_average_embedding(X_test, 'Description', glove_embeddings)
+    glove_embeddings = load_glove_embeddings(embedding_name="glove-wiki-gigaword-300")
+    embedding_dim = glove_embeddings.vector_size  # Adjust if different dimensions are used
+
+    X_train_glove = apply_average_embedding(X_train, 'Description', glove_embeddings, embedding_dim)
+    X_val_glove = apply_average_embedding(X_val, 'Description', glove_embeddings, embedding_dim)
+    X_test_glove = apply_average_embedding(X_test, 'Description', glove_embeddings, embedding_dim)
+
+    end_time = time.time()
+    print(f"GloVe embedding loading and feature extraction completed in {end_time - start_time:.2f} seconds.\n")
 
     feature_type = "GloVe Embeddings"
     train_and_evaluate(X_train_glove, X_val_glove, X_test_glove, y_train, y_val, y_test, feature_type, model_configs)
 
     # Uncomment the following line to terminate the process after the first feature extraction
-    sys.exit("Terminating process at this line.")
+    # sys.exit("Terminating process at this line.")
 
-    # Sublinear TF-IDF feature extraction
+    # Sublinear TF-IDF Feature Extraction
     print("Starting sublinear TF-IDF extraction...")
     start_time = time.time()
 
@@ -159,16 +170,16 @@ def main():
     X_val_tfidf = sublinear_tfidf.transform(X_val['Description']).toarray()
     X_test_tfidf = sublinear_tfidf.transform(X_test['Description']).toarray()
 
-    feature_type = "Sublinear TF-IDF Features"
-    train_and_evaluate(X_train_tfidf, X_val_tfidf, X_test_tfidf, y_train, y_val, y_test, feature_type, model_configs)
-
     end_time = time.time()
     print(f"Sublinear TF-IDF extraction completed in {end_time - start_time:.2f} seconds.\n")
+
+    feature_type = "Sublinear TF-IDF Features"
+    train_and_evaluate(X_train_tfidf, X_val_tfidf, X_test_tfidf, y_train, y_val, y_test, feature_type, model_configs)
 
     # Uncomment the following line to terminate the process after the second feature extraction
     # sys.exit("Terminating process at this line.")
 
-    # Bag-of-Words feature extraction with timing
+    # Bag-of-Words Feature Extraction
     print("Starting Bag-of-Words extraction...")
     start_time = time.time()
 
@@ -180,7 +191,7 @@ def main():
     end_time = time.time()
     print(f"Bag-of-Words extraction completed in {end_time - start_time:.2f} seconds.\n")
     
-    # NLTK feature extraction with timing
+    # NLTK Feature Extraction
     print("Starting parallel feature extraction using NLTK...")
     start_time = time.time()
 
@@ -189,19 +200,18 @@ def main():
     X_test_nltk = extract_features_parallel(X_test)
 
     end_time = time.time()
-    print(f"Parallel feature extraction completed in {end_time - start_time:.2f} seconds.\n")
+    print(f"Parallel NLTK feature extraction completed in {end_time - start_time:.2f} seconds.\n")
 
     # Concatenate NLTK features and Bag-of-Words
     X_train_combined = np.hstack((X_train_nltk, X_train_bow))
     X_val_combined = np.hstack((X_val_nltk, X_val_bow))
     X_test_combined = np.hstack((X_test_nltk, X_test_bow))
 
-    # Scaling features with timing
+    # Scaling Features
     print("Scaling features...")
     start_time = time.time()
 
     scaler = StandardScaler()
-    print("Scaling features...")
     X_train_scaled = scaler.fit_transform(X_train_combined)
     X_val_scaled = scaler.transform(X_val_combined)
     X_test_scaled = scaler.transform(X_test_combined)
@@ -209,10 +219,8 @@ def main():
     end_time = time.time()
     print(f"Feature scaling completed in {end_time - start_time:.2f} seconds.\n")
 
-    feature_type = "Combined NLTK and 'Bag-Of-Words' Features"
-    
+    feature_type = "Combined NLTK and Bag-Of-Words Features"
     train_and_evaluate(X_train_scaled, X_val_scaled, X_test_scaled, y_train, y_val, y_test, feature_type, model_configs)
-
 
 if __name__ == "__main__":
     main()
