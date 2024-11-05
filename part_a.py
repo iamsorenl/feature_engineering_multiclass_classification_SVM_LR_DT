@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import sys
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.svm import LinearSVC
@@ -9,8 +10,9 @@ from sklearn.metrics import classification_report, accuracy_score, confusion_mat
 import time
 from sklearn.model_selection import GridSearchCV
 from sklearn.preprocessing import StandardScaler
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from features.nltk_features import extract_useful_features
+from features.embedding_features import load_glove_embeddings, apply_average_embedding
 from joblib import Parallel, delayed
 
 def extract_features_parallel(texts, n_jobs=-1):
@@ -134,17 +136,49 @@ def main():
         }
     }
 
-    # TF-IDF feature extraction with timing
-    print("Starting TF-IDF extraction...")
+    # Load GloVe embeddings
+    glove_embeddings = load_glove_embeddings(embedding_dim=100)
+
+    # Average GloVe Embeddings
+    X_train_glove = apply_average_embedding(X_train, 'Description', glove_embeddings)
+    X_val_glove = apply_average_embedding(X_val, 'Description', glove_embeddings)
+    X_test_glove = apply_average_embedding(X_test, 'Description', glove_embeddings)
+
+    feature_type = "GloVe Embeddings"
+    train_and_evaluate(X_train_glove, X_val_glove, X_test_glove, y_train, y_val, y_test, feature_type, model_configs)
+
+    # Uncomment the following line to terminate the process after the first feature extraction
+    sys.exit("Terminating process at this line.")
+
+    # Sublinear TF-IDF feature extraction
+    print("Starting sublinear TF-IDF extraction...")
     start_time = time.time()
 
-    tfidf = TfidfVectorizer(max_features=5000)
-    X_train_tfidf = tfidf.fit_transform(X_train['Description']).toarray()
-    X_val_tfidf = tfidf.transform(X_val['Description']).toarray()
-    X_test_tfidf = tfidf.transform(X_test['Description']).toarray()
+    sublinear_tfidf = TfidfVectorizer(max_features=1000, ngram_range=(1, 1), sublinear_tf=True)
+    X_train_tfidf = sublinear_tfidf.fit_transform(X_train['Description']).toarray()
+    X_val_tfidf = sublinear_tfidf.transform(X_val['Description']).toarray()
+    X_test_tfidf = sublinear_tfidf.transform(X_test['Description']).toarray()
+
+    feature_type = "Sublinear TF-IDF Features"
+    train_and_evaluate(X_train_tfidf, X_val_tfidf, X_test_tfidf, y_train, y_val, y_test, feature_type, model_configs)
 
     end_time = time.time()
-    print(f"TF-IDF extraction completed in {end_time - start_time:.2f} seconds.\n")
+    print(f"Sublinear TF-IDF extraction completed in {end_time - start_time:.2f} seconds.\n")
+
+    # Uncomment the following line to terminate the process after the second feature extraction
+    # sys.exit("Terminating process at this line.")
+
+    # Bag-of-Words feature extraction with timing
+    print("Starting Bag-of-Words extraction...")
+    start_time = time.time()
+
+    bow_vectorizer = CountVectorizer(max_features=1000, ngram_range=(1, 1))
+    X_train_bow = bow_vectorizer.fit_transform(X_train['Description']).toarray()
+    X_val_bow = bow_vectorizer.transform(X_val['Description']).toarray()
+    X_test_bow = bow_vectorizer.transform(X_test['Description']).toarray()
+
+    end_time = time.time()
+    print(f"Bag-of-Words extraction completed in {end_time - start_time:.2f} seconds.\n")
     
     # NLTK feature extraction with timing
     print("Starting parallel feature extraction using NLTK...")
@@ -157,10 +191,10 @@ def main():
     end_time = time.time()
     print(f"Parallel feature extraction completed in {end_time - start_time:.2f} seconds.\n")
 
-    # Concatenate NLTK features and TF-IDF
-    X_train_combined = np.hstack((X_train_nltk, X_train_tfidf))
-    X_val_combined = np.hstack((X_val_nltk, X_val_tfidf))
-    X_test_combined = np.hstack((X_test_nltk, X_test_tfidf))
+    # Concatenate NLTK features and Bag-of-Words
+    X_train_combined = np.hstack((X_train_nltk, X_train_bow))
+    X_val_combined = np.hstack((X_val_nltk, X_val_bow))
+    X_test_combined = np.hstack((X_test_nltk, X_test_bow))
 
     # Scaling features with timing
     print("Scaling features...")
@@ -175,7 +209,7 @@ def main():
     end_time = time.time()
     print(f"Feature scaling completed in {end_time - start_time:.2f} seconds.\n")
 
-    feature_type = "Combined NLTK and TF-IDF Features"
+    feature_type = "Combined NLTK and 'Bag-Of-Words' Features"
     
     train_and_evaluate(X_train_scaled, X_val_scaled, X_test_scaled, y_train, y_val, y_test, feature_type, model_configs)
 
