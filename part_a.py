@@ -16,6 +16,7 @@ import warnings
 from sklearn.exceptions import ConvergenceWarning
 from joblib import Parallel, delayed
 import sys # For sys.exit() function
+from onevsrest import evaluate_best_model
 
 # Suppress convergence warnings
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
@@ -124,6 +125,9 @@ def main():
     
     # Split the data into training, validation, and testing
     X_train, X_val, X_test, y_train, y_val, y_test = tt_split(data)
+
+    # uncomment the following line to run the OneVsRestClassifier with Decision Tree and Sublinear TF-IDF
+    evaluate_best_model(X_train['Description'], y_train, X_test['Description'], y_test)
 
     # Combine model instances with their parameter grids
     model_configs = {
