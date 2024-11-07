@@ -83,10 +83,10 @@ Each dataset follows this structure:
 
 **Training Dataset (`ecommerceDataset.csv`):**
 
-| ID | DESCRIPTION | CATEGORY           |
+| ID | CATEGORY | DESCRIPTION           |
 |----|-------------|--------------------|
-| 1  | Lorem ipsum | Electronics        |
-| 2  | ...         | Clothing & Accessories |
+| 1  | Books       | Lorem ipsum        |
+| 2  | ...         | ...
 
 ---
 
