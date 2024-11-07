@@ -5,7 +5,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.svm import LinearSVC
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.metrics import classification_report, accuracy_score, confusion_matrix, f1_score
+from sklearn.metrics import classification_report, accuracy_score, confusion_matrix, f1_score, ConfusionMatrixDisplay
 import time
 from sklearn.model_selection import GridSearchCV
 from sklearn.preprocessing import StandardScaler
@@ -84,7 +84,6 @@ def train_and_evaluate(X_train, X_val, X_test, y_train, y_val, y_test, feature_t
             std_score = grid_search.cv_results_['std_test_score'][idx]
             print(f"    Mean F1 Macro Score: {mean_score:.4f} (+/- {std_score:.4f})\n")
 
-        
         # Show best parameters found and training time
         print(f"Best Parameters for {name}:")
         for param, value in best_params.items():
@@ -105,13 +104,18 @@ def train_and_evaluate(X_train, X_val, X_test, y_train, y_val, y_test, feature_t
         test_accuracy = accuracy_score(y_test, test_predictions)
         test_f1_score = f1_score(y_test, test_predictions, average='macro', zero_division=0)
         report = classification_report(y_test, test_predictions, target_names=list(set(y_test)))
+        
+        # Displaying the confusion matrix visually using ConfusionMatrixDisplay
         cm = confusion_matrix(y_test, test_predictions)
+        disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=list(set(y_test)))
+        disp.plot(cmap=plt.cm.Blues)
+        plt.title(f'Confusion Matrix for {name} with {feature_type}')
+        plt.show()
         
         print(f"Test Results for {name}:")
         print(f"    Accuracy: {test_accuracy:.4f}")
         print(f"    Macro F1: {test_f1_score:.4f}\n")
         print("Classification Report:\n", report)
-        print("Confusion Matrix:\n", cm)
         print(f"{'='*50}\n")
 
 def main():
@@ -127,7 +131,8 @@ def main():
     X_train, X_val, X_test, y_train, y_val, y_test = tt_split(data)
 
     # uncomment the following line to run the OneVsRestClassifier with Decision Tree and Sublinear TF-IDF
-    evaluate_best_model(X_train['Description'], y_train, X_test['Description'], y_test)
+    # This model combo was deterined to be the best after running through several combinations
+    # evaluate_best_model(X_train['Description'], y_train, X_test['Description'], y_test)
 
     # Combine model instances with their parameter grids
     model_configs = {
