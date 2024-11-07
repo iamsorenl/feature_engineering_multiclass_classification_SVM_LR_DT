@@ -161,9 +161,3 @@ Key hyperparameters were explored for each model:
 A OneVsRest approach was used to evaluate the multi-class problem, providing individual accuracy and macro-average F1 scores for each class. **ROC** and **Precision-Recall curves** were generated for each class to assess discriminative performance.
 
 ---
-
-## Contributing
-
-Contributions are welcome! If you encounter issues or have ideas for improvements, feel free to open a pull request or issue.
-
----
